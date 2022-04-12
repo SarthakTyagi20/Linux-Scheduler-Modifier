@@ -1,0 +1,33 @@
+Steps to run the programs-
+
+First open 4 terminal windows (or split it)
+
+Then in 1st terminal do:
+htop
+
+In 2nd terminal do:
+make loop
+./loop
+
+In 3rd terminal do:
+./loop
+
+In 4th terminal do:
+make test
+./test
+
+Enter the first pid as the pid of ./loop given in htop window and second pid as the pid of other ./loop given in htop window. Then it will show that the process corresponding to first pid is being delayed by 5 milliseconds.
+
+Explanation:
+First I added a new field "dly" in struct sched_entity, present in include/linux/sched.h 
+"dly" will be used to store the delay that is being sent by the user for a particular process. Then I initialised it by 0 for all the processes in the kernel/sched/core.c
+I modified the update_curr method present in kernel/sched/fair.c such that the additional delay will be added in the vruntime if the dly has been modified. 
+I added the entry for the delay_a_process and show_disp_time system calls in /home/kern/build/linux-5.14.6/arch/x86/entry/syscalls/syscall_64.tbl
+Then I added the macro for the delay_a_process and show_disp_time system call in /home/kern/build/linux-5.14.6/kernel/sys.c 
+delay_a_process takes 2 parameters pid (of the process for which we have to delay) and time (taken in milliseconds, for which we have to delay the processs everytime vruntime is updated)
+I used find_get_pid() to get the pid_struct and pid_task() to get task_struct. And then incremented the value of dly by time*1000000 , as time values related to vruntime are in nano seconds and we sent the time in milliseconds.
+show_disp_time takes 1 parameter, the pid (for the process for which we have to show the dispatch time). 
+I used find_get_pid() to get the pid_struct and pid_task() to get task_struct. I assigned the value of exec_start of the process to variable time and printed its value if it was incremented and finally printed the total execution time of the process.
+loop.c contains a loop that runs for a really long time
+test.c takes 2 pid as input, in which the user has to enter the pid of ./loop obtained from htop. And the time is entered in milliseconds. Then the system call is called for delaying the first process and then the dispatch times of both the processes are logged into the kernel log by the system call show_disp_time.
+The kernel logs can be viewed by using the following command in terminal: sudo dmesg | tail
